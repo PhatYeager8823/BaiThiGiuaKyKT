@@ -1,0 +1,123 @@
+-- 1. Tạo Database
+CREATE DATABASE QuanLyDiem;
+GO
+USE QuanLyDiem;
+GO
+
+-- 2. Tạo các bảng (Chạy đúng thứ tự này)
+CREATE TABLE LOP (
+    MALOP VARCHAR(10) PRIMARY KEY,
+    TENLOP NVARCHAR(50),
+    SISO INT
+);
+
+CREATE TABLE MONHOC (
+    MAMH VARCHAR(10) PRIMARY KEY,
+    TENMH NVARCHAR(50),
+    SOTC INT
+);
+
+CREATE TABLE SINHVIEN (
+    MASV VARCHAR(10) PRIMARY KEY,
+    HOTEN NVARCHAR(50),
+    NGAYSINH DATE,
+    TINH NVARCHAR(50),
+    MALOP VARCHAR(10) FOREIGN KEY REFERENCES LOP(MALOP)
+);
+
+CREATE TABLE KETQUA (
+    MASV VARCHAR(10) FOREIGN KEY REFERENCES SINHVIEN(MASV),
+    MAMH VARCHAR(10) FOREIGN KEY REFERENCES MONHOC(MAMH),
+    LANTHI INT,
+    DIEM FLOAT,
+    PRIMARY KEY (MASV, MAMH, LANTHI)
+);
+GO
+
+-- 3. Tạo Store Procedure (Theo đề bài)
+CREATE PROCEDURE sp_SV_DiemCSDL_CaoNhat_16DTH3
+AS
+BEGIN
+    DECLARE @MaMon VARCHAR(10);
+    -- Lấy mã môn Cơ sở dữ liệu
+    SELECT @MaMon = MAMH FROM MONHOC WHERE TENMH = N'Cơ sở dữ liệu';
+
+    DECLARE @MaxDiem FLOAT;
+    -- Tìm điểm cao nhất của lớp 16DTH3 môn này
+    SELECT @MaxDiem = MAX(KQ.DIEM)
+    FROM KETQUA KQ
+    JOIN SINHVIEN SV ON KQ.MASV = SV.MASV
+    JOIN LOP L ON SV.MALOP = L.MALOP
+    WHERE L.TENLOP = '16DTH3' AND KQ.MAMH = @MaMon;
+
+    -- Xuất danh sách sinh viên đạt điểm cao nhất đó
+    SELECT SV.MASV, SV.HOTEN, SV.NGAYSINH, SV.TINH, L.TENLOP, KQ.DIEM
+    FROM SINHVIEN SV, LOP L, KETQUA KQ
+    WHERE SV.MALOP = L.MALOP
+      AND SV.MASV = KQ.MASV
+      AND L.TENLOP = '16DTH3'
+      AND KQ.MAMH = @MaMon
+      AND KQ.DIEM = @MaxDiem;
+END;
+GO
+
+USE QuanLyDiem;
+GO
+
+-- 1. NHẬP DỮ LIỆU BẢNG LỚP (3 dòng)
+-- Lưu ý: Phải có lớp '16DTH3' để phục vụ câu hỏi Store Procedure
+INSERT INTO LOP (MALOP, TENLOP, SISO) VALUES ('L01', '16DTH3', 50);
+INSERT INTO LOP (MALOP, TENLOP, SISO) VALUES ('L02', '16DTH2', 45);
+INSERT INTO LOP (MALOP, TENLOP, SISO) VALUES ('L03', '16DTH1', 40);
+GO
+
+select * from lop 
+
+-- 2. NHẬP DỮ LIỆU BẢNG MÔN HỌC (3 dòng)
+-- Lưu ý: Phải có môn 'Cơ sở dữ liệu'
+INSERT INTO MONHOC (MAMH, TENMH, SOTC) VALUES ('MH01', N'Cơ sở dữ liệu', 3);
+INSERT INTO MONHOC (MAMH, TENMH, SOTC) VALUES ('MH02', N'Mạng máy tính', 3);
+INSERT INTO MONHOC (MAMH, TENMH, SOTC) VALUES ('MH03', N'Lập trình Python', 4);
+GO
+
+select * from monhoc
+
+-- 3. NHẬP DỮ LIỆU BẢNG SINH VIÊN (3 dòng)
+-- SV01 và SV02 học lớp 16DTH3 (L01), SV03 học lớp khác
+INSERT INTO SINHVIEN (MASV, HOTEN, NGAYSINH, TINH, MALOP) 
+VALUES ('SV01', N'Nguyễn Văn A', '2003-01-01', N'TP.HCM', 'L01');
+
+INSERT INTO SINHVIEN (MASV, HOTEN, NGAYSINH, TINH, MALOP) 
+VALUES ('SV02', N'Trần Thị B', '2003-05-15', N'Hà Nội', 'L01');
+
+INSERT INTO SINHVIEN (MASV, HOTEN, NGAYSINH, TINH, MALOP) 
+VALUES ('SV03', N'Lê Văn C', '2003-09-20', N'Đà Nẵng', 'L02');
+GO
+
+select * from sinhvien
+
+-- 4. NHẬP DỮ LIỆU BẢNG KẾT QUẢ (9 dòng)
+-- Chiến thuật: Mỗi sinh viên thi đủ 3 môn (3 SV x 3 Môn = 9 dòng)
+
+-- Điểm của SV01 (Lớp 16DTH3)
+INSERT INTO KETQUA (MASV, MAMH, LANTHI, DIEM) VALUES ('SV01', 'MH01', 1, 8.5); -- CSDL
+INSERT INTO KETQUA (MASV, MAMH, LANTHI, DIEM) VALUES ('SV01', 'MH02', 1, 7.0);
+INSERT INTO KETQUA (MASV, MAMH, LANTHI, DIEM) VALUES ('SV01', 'MH03', 1, 9.0);
+
+-- Điểm của SV02 (Lớp 16DTH3) -> Cho điểm CSDL cao hơn để test SP
+INSERT INTO KETQUA (MASV, MAMH, LANTHI, DIEM) VALUES ('SV02', 'MH01', 1, 9.5); -- CSDL (Cao nhất)
+INSERT INTO KETQUA (MASV, MAMH, LANTHI, DIEM) VALUES ('SV02', 'MH02', 1, 8.0);
+INSERT INTO KETQUA (MASV, MAMH, LANTHI, DIEM) VALUES ('SV02', 'MH03', 1, 8.5);
+
+-- Điểm của SV03 (Lớp 16DTH2)
+INSERT INTO KETQUA (MASV, MAMH, LANTHI, DIEM) VALUES ('SV03', 'MH01', 1, 6.0);
+INSERT INTO KETQUA (MASV, MAMH, LANTHI, DIEM) VALUES ('SV03', 'MH02', 1, 5.5);
+INSERT INTO KETQUA (MASV, MAMH, LANTHI, DIEM) VALUES ('SV03', 'MH03', 1, 7.0);
+GO
+
+select * from ketqua
+
+delete from ketqua
+delete from sinhvien
+delete from monhoc
+delete from lop
